@@ -54,10 +54,9 @@ public:
 
     // Constructor for RGB-D cameras.
     // 16833
-    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
-    // Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
     // 16833
-    
+
     // Constructor for Monocular cameras.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
@@ -65,6 +64,7 @@ public:
     void ExtractORB(int flag, const cv::Mat &im);
 
     // 16833
+    // get_clustered_point_cloud() in yurou's code
     void GetClusteredPCL(const cv::Mat &imRGB);
     // 16833
     
@@ -215,7 +215,7 @@ public:
     };
     std::unordered_map<int, cluster> cloud_dict;
 
-    std::vector<int> kp2label;
+    std::vector<int> kp2label; // the 'assign' vector in yurou's code 
     // 16833 
 private:
 

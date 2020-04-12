@@ -116,8 +116,9 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-    :panoptic_seg(imSeg.clone()),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
+
+Frame::Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+    :panoptic_seg(imSeg.clone()), mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
 {
     // Frame ID
@@ -141,6 +142,10 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg
         return;
 
     UndistortKeyPoints();
+
+    // 16833
+    GetClusteredPCL(imRGB);
+    // 16833
 
     ComputeStereoFromRGBD(imDepth);
 
@@ -197,6 +202,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
     UndistortKeyPoints();
 
+    
     // Set no stereo information
     mvuRight = vector<float>(N,-1);
     mvDepth = vector<float>(N,-1);
@@ -251,6 +257,54 @@ void Frame::ExtractORB(int flag, const cv::Mat &im)
     else
         (*mpORBextractorRight)(im,cv::Mat(),mvKeysRight,mDescriptorsRight);
 }
+
+// 16833
+void Frame::GetClusteredPCL(const cv::Mat &imRGB)
+{
+    // read in panoptic_seg & seg_info from Subbu's preprocessed file
+
+    int n = seg_info.size();
+    for (int i=0; i<n; i++)
+    {
+        cluster c;
+        c.pred_class = seg_info[i].category_id;
+        if (seg_info[i].isthing) c.score = seg_info[i].score;
+        cloud_dict[i+1] = c;
+    }
+
+    kp2label = std::vector<int>(N, -1); // N is number of kps
+    for (int i=0; i<N; i++)
+    {
+        int u, v, label;
+        u = int(mvKeys[i].pt.y);
+        v = int(mvKeys[i].pt.x);
+        label = panoptic_seg.at<int>(u, v) + 1; // label is from 0 to n-1
+        if (0 <= label && label <= n)
+        {
+            cv::Vec3b color = imRGB.at<cv::Vec3b>(u, v);
+            float Z = imDepth.at<float>(u, v); // has taken mDepthMapFactor into consideration in Tracking::GrabImageRGBD()
+            if (Z == 0) continue;
+            float X = (u - cx) * Z / fx;
+            float Y = (v - cy) * Z / fy;
+            
+            cloud_dict[label].color_arr.push_back(color);
+            cloud_dict[label].xyz_arr.push_back(cv::vec3f(X, Y, Z));
+            cloud_dict[label].des_arr.push_back(mDescriptors.rows(i));
+            cloud_dict[label].uv_arr.push_back(cv::Point(u, v));
+            cloud_dict[label].kp_arr.push_back(mvKeys[i]);
+            kp2label[i] = label;
+        }
+    }
+
+    std::vector<int> delete_arr;
+    for (auto it=cloud_dict.begin(); it!=cloud_dict.end(); ++it)
+    {
+        int orb_num = it->second.color_arr.size();
+        if (orb_num < 10) delete_arr.push_back(it->first);
+    }
+    for (int i=0; i<delete_arr.size(); i++) cloud_dict.erase(delete_arr[i]);
+}
+// 16833
 
 void Frame::SetPose(cv::Mat Tcw)
 {
