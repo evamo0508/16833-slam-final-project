@@ -89,7 +89,7 @@ int main(int argc, char **argv)
         imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
         imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
         imSeg = cv::imread(string(argv[3])+"/seg/"+vstrImageFilenamesRGB[ni].substr(4), CV_LOAD_IMAGE_UNCHANGED);
-        cout << seg_info[ni][1].score << endl;
+        // cout << seg_info[ni][1].score << endl;
 
         double tframe = vTimestamps[ni];
 

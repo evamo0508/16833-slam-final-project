@@ -144,7 +144,7 @@ Frame::Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth
     UndistortKeyPoints();
 
     // 16833
-    GetClusteredPCL(imRGB);
+    GetClusteredPCL(imRGB, imDepth);
     // 16833
 
     ComputeStereoFromRGBD(imDepth);
@@ -259,7 +259,7 @@ void Frame::ExtractORB(int flag, const cv::Mat &im)
 }
 
 // 16833
-void Frame::GetClusteredPCL(const cv::Mat &imRGB)
+void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
 {
     // read in panoptic_seg & seg_info from Subbu's preprocessed file
 
@@ -288,8 +288,8 @@ void Frame::GetClusteredPCL(const cv::Mat &imRGB)
             float Y = (v - cy) * Z / fy;
             
             cloud_dict[label].color_arr.push_back(color);
-            cloud_dict[label].xyz_arr.push_back(cv::vec3f(X, Y, Z));
-            cloud_dict[label].des_arr.push_back(mDescriptors.rows(i));
+            cloud_dict[label].xyz_arr.push_back(cv::Vec3f(X, Y, Z));
+            cloud_dict[label].des_arr.push_back(mDescriptors.row(i));
             cloud_dict[label].uv_arr.push_back(cv::Point(u, v));
             cloud_dict[label].kp_arr.push_back(mvKeys[i]);
             kp2label[i] = label;

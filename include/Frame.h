@@ -65,7 +65,7 @@ public:
 
     // 16833
     // get_clustered_point_cloud() in yurou's code
-    void GetClusteredPCL(const cv::Mat &imRGB);
+    void GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth);
     // 16833
     
     // Compute Bag of Words representation.
