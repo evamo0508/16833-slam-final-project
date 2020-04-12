@@ -22,6 +22,7 @@
 #define FRAME_H
 
 #include<vector>
+#include<unordered_map>
 
 #include "MapPoint.h"
 #include "Thirdparty/DBoW2/DBoW2/BowVector.h"
@@ -52,14 +53,21 @@ public:
     Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
     // Constructor for RGB-D cameras.
-    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
-
+    // 16833
+    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    // Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    // 16833
+    
     // Constructor for Monocular cameras.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
     void ExtractORB(int flag, const cv::Mat &im);
 
+    // 16833
+    void GetClusteredPCL(const cv::Mat &imRGB);
+    // 16833
+    
     // Compute Bag of Words representation.
     void ComputeBoW();
 
@@ -187,7 +195,28 @@ public:
 
     static bool mbInitialComputations;
 
+    // 16833
+    struct info {
+        int category_id;
+        bool isthing;
+        float score;
+    };
+    cv::Mat panoptic_seg;
+    std::unordered_map<int, info> seg_info;
 
+    struct cluster {
+        int pred_class;
+        float score;
+        std::vector<cv::Vec3b> color_arr;
+        std::vector<cv::Vec3f> xyz_arr;
+        std::vector<cv::Mat> des_arr;
+        std::vector<cv::Point> uv_arr;
+        std::vector<cv::KeyPoint> kp_arr;
+    };
+    std::unordered_map<int, cluster> cloud_dict;
+
+    std::vector<int> kp2label;
+    // 16833 
 private:
 
     // Undistort keypoints given OpenCV distortion parameters.

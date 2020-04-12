@@ -33,8 +33,12 @@ using namespace std;
 void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageFilenamesRGB,
                 vector<string> &vstrImageFilenamesD, vector<double> &vTimestamps);
 
+//16-833
+void LoadSegInfo(const string& strDataRoot, const vector<double>& vTimestamps,
+                 vector<unordered_map<int, ORB_SLAM2::Frame::info>>& seg_info);
+
 int main(int argc, char **argv)
-{
+{   
     if(argc != 5)
     {
         cerr << endl << "Usage: ./rgbd_tum path_to_vocabulary path_to_settings path_to_sequence path_to_association" << endl;
@@ -47,6 +51,10 @@ int main(int argc, char **argv)
     vector<double> vTimestamps;
     string strAssociationFilename = string(argv[4]);
     LoadImages(strAssociationFilename, vstrImageFilenamesRGB, vstrImageFilenamesD, vTimestamps);
+
+    //16-833 Load seg_info for all masks into list of dictionary (one dictionary per image)
+    vector<unordered_map<int, ORB_SLAM2::Frame::info>> seg_info;
+    LoadSegInfo(string(argv[3]), vTimestamps, seg_info);
 
     // Check consistency in the number of images and depthmaps
     int nImages = vstrImageFilenamesRGB.size();
@@ -73,12 +81,16 @@ int main(int argc, char **argv)
     cout << "Images in the sequence: " << nImages << endl << endl;
 
     // Main loop
-    cv::Mat imRGB, imD;
+    cv::Mat imRGB, imD, imSeg;
+
     for(int ni=0; ni<nImages; ni++)
     {
         // Read image and depthmap from file
         imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
         imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
+        imSeg = cv::imread(string(argv[3])+"/seg/"+vstrImageFilenamesRGB[ni].substr(4), CV_LOAD_IMAGE_UNCHANGED);
+        cout << seg_info[ni][1].score << endl;
+
         double tframe = vTimestamps[ni];
 
         if(imRGB.empty())
@@ -95,7 +107,7 @@ int main(int argc, char **argv)
 #endif
 
         // Pass the image to the SLAM system
-        SLAM.TrackRGBD(imRGB,imD,tframe);
+        SLAM.TrackRGBD(imRGB,imD,imSeg,tframe);
 
 #ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
@@ -163,5 +175,42 @@ void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageF
             vstrImageFilenamesD.push_back(sD);
 
         }
+    }
+}
+
+void LoadSegInfo(const string& strDataRoot, const vector<double>& vTimestamps, vector<unordered_map<int, ORB_SLAM2::Frame::info>>& seg_info){
+    ifstream maskFileHandle;
+    string line, instanceID, thing, catID, score;
+    float f_score; int i_catID; bool b_thing;
+
+    for(auto timeStamp: vTimestamps){
+        maskFileHandle.open(strDataRoot+"/seg/"+to_string(timeStamp)+".msk", std::ios::in);
+        unordered_map<int, ORB_SLAM2::Frame::info> curImg_segInfo;
+        while(!maskFileHandle.eof())
+        {
+            getline(maskFileHandle, line);
+            if(!line.empty()){
+                stringstream ss;
+                ss << line;
+                ss >> instanceID;
+                ss >> thing;
+                ss >> catID;
+                
+                i_catID = stoi(catID);
+                if(thing == "True"){
+                    ss >> score;
+                    b_thing = true;
+                    f_score = stof(score);
+                }
+                else{
+                    b_thing = false;
+                    f_score = -1;
+                }
+                curImg_segInfo[stoi(instanceID)] = ORB_SLAM2::Frame::info{i_catID, b_thing, f_score};
+            }
+        }
+        // seg_info.push_back(curImg_segInfo);
+        cout << "End of mask file: " << to_string(timeStamp) << endl;
+        maskFileHandle.close();
     }
 }
