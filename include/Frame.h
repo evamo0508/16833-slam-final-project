@@ -40,6 +40,11 @@ namespace ORB_SLAM2
 
 class MapPoint;
 class KeyFrame;
+struct info {
+        int category_id;
+        bool isthing;
+        float score;
+    };
 
 class Frame
 {
@@ -54,7 +59,7 @@ public:
 
     // Constructor for RGB-D cameras.
     // 16833
-    Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, unordered_map<int, ORB_SLAM2::info> *segInfoPtr);
     // 16833
 
     // Constructor for Monocular cameras.
@@ -196,13 +201,9 @@ public:
     static bool mbInitialComputations;
 
     // 16833
-    struct info {
-        int category_id;
-        bool isthing;
-        float score;
-    };
+    
     cv::Mat panoptic_seg;
-    std::unordered_map<int, info> seg_info;
+    std::unordered_map<int, info>* seg_info;
 
     struct cluster {
         int pred_class;

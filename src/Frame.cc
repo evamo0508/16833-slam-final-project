@@ -117,9 +117,9 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 }
 
 
-Frame::Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
+Frame::Frame(const cv::Mat &imRGB, const cv::Mat &imGray, const cv::Mat &imDepth, const cv::Mat &imSeg, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, unordered_map<int, ORB_SLAM2::info> *segInfoPtr)
     :panoptic_seg(imSeg.clone()), mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-     mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+     mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth), seg_info(segInfoPtr)
 {
     // Frame ID
     mnId=nNextId++;
@@ -263,12 +263,12 @@ void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
 {
     // read in panoptic_seg & seg_info from Subbu's preprocessed file
 
-    int n = seg_info.size();
+    int n = (*seg_info).size();
     for (int i=0; i<n; i++)
     {
         cluster c;
-        c.pred_class = seg_info[i].category_id;
-        if (seg_info[i].isthing) c.score = seg_info[i].score;
+        c.pred_class = (*seg_info)[i].category_id;
+        if ((*seg_info)[i].isthing) c.score = (*seg_info)[i].score;
         cloud_dict[i+1] = c;
     }
 

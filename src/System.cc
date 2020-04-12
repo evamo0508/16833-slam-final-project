@@ -164,7 +164,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
     return Tcw;
 }
 
-cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const cv::Mat &segmentationmap, const double &timestamp)
+cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const cv::Mat &segmentationmap, unordered_map<int, ORB_SLAM2::info> *segInfoPtr, const double &timestamp)
 {
     if(mSensor!=RGBD)
     {
@@ -206,7 +206,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const cv::
     }
     }
 
-    cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,segmentationmap,timestamp);
+    cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,segmentationmap,segInfoPtr,timestamp);
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;

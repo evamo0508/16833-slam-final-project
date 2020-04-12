@@ -204,7 +204,7 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 }
 
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const cv::Mat &imSeg, const double &timestamp)
+cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const cv::Mat &imSeg, unordered_map<int, ORB_SLAM2::info> *segInfoPtr, const double &timestamp)
 {
     mImGray = imRGB;
     cv::Mat imDepth = imD;
@@ -228,7 +228,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const c
     if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
         imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-    mCurrentFrame = Frame(imRGB, mImGray,imDepth,imSegmentation,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(imRGB, mImGray,imDepth,imSegmentation,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth,segInfoPtr);
 
     Track();
 
