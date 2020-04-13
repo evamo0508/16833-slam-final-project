@@ -261,8 +261,6 @@ void Frame::ExtractORB(int flag, const cv::Mat &im)
 // 16833
 void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
 {
-    // read in panoptic_seg & seg_info from Subbu's preprocessed file
-
     int n = (*seg_info).size();
     for (int i=0; i<n; i++)
     {

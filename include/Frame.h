@@ -41,10 +41,19 @@ namespace ORB_SLAM2
 class MapPoint;
 class KeyFrame;
 struct info {
-        int category_id;
-        bool isthing;
-        float score;
-    };
+    int category_id;
+    bool isthing;
+    float score;
+};
+struct cluster {
+    int pred_class;
+    float score;
+    std::vector<cv::Vec3b> color_arr;
+    std::vector<cv::Vec3f> xyz_arr;
+    std::vector<cv::Mat> des_arr;
+    std::vector<cv::Point> uv_arr;
+    std::vector<cv::KeyPoint> kp_arr;
+};
 
 class Frame
 {
@@ -201,23 +210,12 @@ public:
     static bool mbInitialComputations;
 
     // 16833
-    
     cv::Mat panoptic_seg;
     std::unordered_map<int, info>* seg_info;
-
-    struct cluster {
-        int pred_class;
-        float score;
-        std::vector<cv::Vec3b> color_arr;
-        std::vector<cv::Vec3f> xyz_arr;
-        std::vector<cv::Mat> des_arr;
-        std::vector<cv::Point> uv_arr;
-        std::vector<cv::KeyPoint> kp_arr;
-    };
     std::unordered_map<int, cluster> cloud_dict;
-
     std::vector<int> kp2label; // the 'assign' vector in yurou's code 
     // 16833 
+
 private:
 
     // Undistort keypoints given OpenCV distortion parameters.

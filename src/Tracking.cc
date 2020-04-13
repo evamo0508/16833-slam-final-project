@@ -883,20 +883,30 @@ bool Tracking::TrackWithMotionModel()
         th=15;
     else
         th=7;
-    int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
+
+    //16833
+    std::vector<int> trainIdx, queryIdx;
+    // TODO: push back trainIdx, queryIdx in this fn, the size should be of nmatches for both vectors
+    int nmatches = matcher.SearchByProjection(mCurrentFrame,trainIdx,queryIdx,mLastFrame,th,mSensor==System::MONOCULAR);
 
     // If few matches, uses a wider window search
     if(nmatches<20)
     {
         fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));
-        nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);
+        nmatches = matcher.SearchByProjection(mCurrentFrame,trainIdx,queryIdx,mLastFrame,2*th,mSensor==System::MONOCULAR);
     }
 
     if(nmatches<20)
         return false;
 
+    std::vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
+    // TODO: write the code for voting here and modify vDynamic accordingly
+
+
     // Optimize frame pose with all matches
-    Optimizer::PoseOptimization(&mCurrentFrame);
+    // TODO: modify PoseOptimization() s.t. it doesn't include dynamic kps when doing optimization
+    Optimizer::PoseOptimization(&mCurrentFrame, vDynamic);
+    // 16833
 
     // Discard outliers
     int nmatchesMap = 0;
