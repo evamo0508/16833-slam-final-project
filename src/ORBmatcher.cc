@@ -307,6 +307,10 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
         rotHist[i].reserve(500);
     const float factor = 1.0f/HISTO_LENGTH;
 
+    // 16833
+    std::unordered_map<int, int> queryIdx2trainIdx;
+    // 16833
+    
     // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
     DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
     DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin();
@@ -368,6 +372,9 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                         vpMapPointMatches[bestIdxF]=pMP;
 
                         const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
+                        // 16833
+                        queryIdx2trainIdx[bestIdxF] = realIdxKF;
+                        // 16833
 
                         if(mbCheckOrientation)
                         {
@@ -410,12 +417,18 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
         for(int i=0; i<HISTO_LENGTH; i++)
         {
-            if(i==ind1 || i==ind2 || i==ind3)
-                continue;
             for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
             {
-                vpMapPointMatches[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
-                nmatches--;
+                if(i==ind1 || i==ind2 || i==ind3)
+                {
+                    trainIdx.push_back(queryIdx2trainIdx[rotHist[i][j]]);
+                    queryIdx.push_back(rotHist[i][j]);
+                }
+                else
+                {
+                    vpMapPointMatches[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
+                    nmatches--;
+                }
             }
         }
     }
@@ -1487,7 +1500,10 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, std::vector<int> &trainI
     const bool bForward = tlc.at<float>(2)>CurrentFrame.mb && !bMono;
     const bool bBackward = -tlc.at<float>(2)>CurrentFrame.mb && !bMono;
 
+    // 16833
     std::unordered_map<int, int> queryIdx2trainIdx;
+    // 16833
+    
     for(int i=0; i<LastFrame.N; i++)
     {
         MapPoint* pMP = LastFrame.mvpMapPoints[i];

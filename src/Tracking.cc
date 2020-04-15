@@ -766,7 +766,7 @@ bool Tracking::TrackReferenceKeyFrame()
     vector<MapPoint*> vpMapPointMatches;
 
     // 16833
-    std::vector<int> trainIdx, queryIdx;
+    vector<int> trainIdx, queryIdx;
     // TODO: push back trainIdx, queryIdx in this fn, the size should be of nmatches for both vectors
 
     int nmatches = matcher.SearchByBoW(mpReferenceKF,mCurrentFrame,vpMapPointMatches, trainIdx, queryIdx);
@@ -777,7 +777,7 @@ bool Tracking::TrackReferenceKeyFrame()
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
 
-    std::vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
+    vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
     // TODO: write the code for voting at Tracking::vote() and modify vDynamic accordingly
     Vote(mpReferenceKF, trainIdx, queryIdx, vDynamic);
 
@@ -897,7 +897,7 @@ bool Tracking::TrackWithMotionModel()
         th=7;
 
     //16833
-    std::vector<int> trainIdx, queryIdx;
+    vector<int> trainIdx, queryIdx;
     int nmatches = matcher.SearchByProjection(mCurrentFrame,trainIdx,queryIdx,mLastFrame,th,mSensor==System::MONOCULAR);
 
     // If few matches, uses a wider window search
@@ -910,7 +910,7 @@ bool Tracking::TrackWithMotionModel()
     if(nmatches<20)
         return false;
 
-    std::vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
+    vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
     // TODO: write the code for voting at Tracking::vote() and modify vDynamic accordingly
     Vote(mLastFrame, trainIdx, queryIdx, vDynamic);
 

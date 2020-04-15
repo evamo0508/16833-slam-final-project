@@ -300,7 +300,7 @@ void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
         int orb_num = it->second.color_arr.size();
         if (orb_num < 10) delete_arr.push_back(it->first);
     }
-    for (int i=0; i<delete_arr.size(); i++) cloud_dict.erase(delete_arr[i]);
+    for (size_t i=0; i<delete_arr.size(); i++) cloud_dict.erase(delete_arr[i]);
 }
 // 16833
 
