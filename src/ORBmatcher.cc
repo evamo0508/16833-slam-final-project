@@ -29,6 +29,10 @@
 
 #include<stdint-gcc.h>
 
+// 16833
+#include<unordered_map>
+// 16833
+
 using namespace std;
 
 namespace ORB_SLAM2
@@ -286,6 +290,140 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
     return nmatches;
 }
+
+// 16833
+int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPointMatches, std::vector<int> &trainIdx, std::vector<int> &queryIdx)
+{
+    const vector<MapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
+
+    vpMapPointMatches = vector<MapPoint*>(F.N,static_cast<MapPoint*>(NULL));
+
+    const DBoW2::FeatureVector &vFeatVecKF = pKF->mFeatVec;
+
+    int nmatches=0;
+
+    vector<int> rotHist[HISTO_LENGTH];
+    for(int i=0;i<HISTO_LENGTH;i++)
+        rotHist[i].reserve(500);
+    const float factor = 1.0f/HISTO_LENGTH;
+
+    // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
+    DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
+    DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin();
+    DBoW2::FeatureVector::const_iterator KFend = vFeatVecKF.end();
+    DBoW2::FeatureVector::const_iterator Fend = F.mFeatVec.end();
+
+    while(KFit != KFend && Fit != Fend)
+    {
+        if(KFit->first == Fit->first)
+        {
+            const vector<unsigned int> vIndicesKF = KFit->second;
+            const vector<unsigned int> vIndicesF = Fit->second;
+
+            for(size_t iKF=0; iKF<vIndicesKF.size(); iKF++)
+            {
+                const unsigned int realIdxKF = vIndicesKF[iKF];
+
+                MapPoint* pMP = vpMapPointsKF[realIdxKF];
+
+                if(!pMP)
+                    continue;
+
+                if(pMP->isBad())
+                    continue;                
+
+                const cv::Mat &dKF= pKF->mDescriptors.row(realIdxKF);
+
+                int bestDist1=256;
+                int bestIdxF =-1 ;
+                int bestDist2=256;
+
+                for(size_t iF=0; iF<vIndicesF.size(); iF++)
+                {
+                    const unsigned int realIdxF = vIndicesF[iF];
+
+                    if(vpMapPointMatches[realIdxF])
+                        continue;
+
+                    const cv::Mat &dF = F.mDescriptors.row(realIdxF);
+
+                    const int dist =  DescriptorDistance(dKF,dF);
+
+                    if(dist<bestDist1)
+                    {
+                        bestDist2=bestDist1;
+                        bestDist1=dist;
+                        bestIdxF=realIdxF;
+                    }
+                    else if(dist<bestDist2)
+                    {
+                        bestDist2=dist;
+                    }
+                }
+
+                if(bestDist1<=TH_LOW)
+                {
+                    if(static_cast<float>(bestDist1)<mfNNratio*static_cast<float>(bestDist2))
+                    {
+                        vpMapPointMatches[bestIdxF]=pMP;
+
+                        const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
+
+                        if(mbCheckOrientation)
+                        {
+                            float rot = kp.angle-F.mvKeys[bestIdxF].angle;
+                            if(rot<0.0)
+                                rot+=360.0f;
+                            int bin = round(rot*factor);
+                            if(bin==HISTO_LENGTH)
+                                bin=0;
+                            assert(bin>=0 && bin<HISTO_LENGTH);
+                            rotHist[bin].push_back(bestIdxF);
+                        }
+                        nmatches++;
+                    }
+                }
+
+            }
+
+            KFit++;
+            Fit++;
+        }
+        else if(KFit->first < Fit->first)
+        {
+            KFit = vFeatVecKF.lower_bound(Fit->first);
+        }
+        else
+        {
+            Fit = F.mFeatVec.lower_bound(KFit->first);
+        }
+    }
+
+
+    if(mbCheckOrientation)
+    {
+        int ind1=-1;
+        int ind2=-1;
+        int ind3=-1;
+
+        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
+
+        for(int i=0; i<HISTO_LENGTH; i++)
+        {
+            if(i==ind1 || i==ind2 || i==ind3)
+                continue;
+            for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
+            {
+                vpMapPointMatches[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
+                nmatches--;
+            }
+        }
+    }
+
+    return nmatches;
+}
+// 16833
+
 
 int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th)
 {
@@ -1349,6 +1487,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, std::vector<int> &trainI
     const bool bForward = tlc.at<float>(2)>CurrentFrame.mb && !bMono;
     const bool bBackward = -tlc.at<float>(2)>CurrentFrame.mb && !bMono;
 
+    std::unordered_map<int, int> queryIdx2trainIdx;
     for(int i=0; i<LastFrame.N; i++)
     {
         MapPoint* pMP = LastFrame.mvpMapPoints[i];
@@ -1421,6 +1560,9 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, std::vector<int> &trainI
                     {
                         bestDist=dist;
                         bestIdx2=i2;
+                        // 16833
+                        queryIdx2trainIdx[bestIdx2] = i;
+                        // 16833
                     }
                 }
 
@@ -1456,14 +1598,21 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, std::vector<int> &trainI
 
         for(int i=0; i<HISTO_LENGTH; i++)
         {
-            if(i!=ind1 && i!=ind2 && i!=ind3)
+            // 16833
+            for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
             {
-                for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
+                if(i!=ind1 && i!=ind2 && i!=ind3)
                 {
                     CurrentFrame.mvpMapPoints[rotHist[i][j]]=static_cast<MapPoint*>(NULL);
                     nmatches--;
                 }
+                else
+                {
+                    trainIdx.push_back(queryIdx2trainIdx[rotHist[i][j]]);
+                    queryIdx.push_back(rotHist[i][j]);
+                }
             }
+            // 16833
         }
     }
 

@@ -131,7 +131,11 @@ protected:
     bool TrackReferenceKeyFrame();
     void UpdateLastFrame();
     bool TrackWithMotionModel();
-
+    // 16833
+    void Vote(KeyFrame* kPF, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> & vDynamic);
+    void Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> & vDynamic);
+    // 16833
+    
     bool Relocalization();
 
     void UpdateLocalMap();

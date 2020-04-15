@@ -765,7 +765,11 @@ bool Tracking::TrackReferenceKeyFrame()
     ORBmatcher matcher(0.7,true);
     vector<MapPoint*> vpMapPointMatches;
 
-    int nmatches = matcher.SearchByBoW(mpReferenceKF,mCurrentFrame,vpMapPointMatches);
+    // 16833
+    std::vector<int> trainIdx, queryIdx;
+    // TODO: push back trainIdx, queryIdx in this fn, the size should be of nmatches for both vectors
+
+    int nmatches = matcher.SearchByBoW(mpReferenceKF,mCurrentFrame,vpMapPointMatches, trainIdx, queryIdx);
 
     if(nmatches<15)
         return false;
@@ -773,7 +777,15 @@ bool Tracking::TrackReferenceKeyFrame()
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
 
-    Optimizer::PoseOptimization(&mCurrentFrame);
+    std::vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
+    // TODO: write the code for voting at Tracking::vote() and modify vDynamic accordingly
+    Vote(mpReferenceKF, trainIdx, queryIdx, vDynamic);
+
+    // Optimize frame pose with all matches
+    // TODO: modify PoseOptimization() s.t. it doesn't include dynamic kps when doing optimization
+    Optimizer::PoseOptimization(&mCurrentFrame, vDynamic);
+    // 16833
+
 
     // Discard outliers
     int nmatchesMap = 0;
@@ -886,7 +898,6 @@ bool Tracking::TrackWithMotionModel()
 
     //16833
     std::vector<int> trainIdx, queryIdx;
-    // TODO: push back trainIdx, queryIdx in this fn, the size should be of nmatches for both vectors
     int nmatches = matcher.SearchByProjection(mCurrentFrame,trainIdx,queryIdx,mLastFrame,th,mSensor==System::MONOCULAR);
 
     // If few matches, uses a wider window search
@@ -900,8 +911,8 @@ bool Tracking::TrackWithMotionModel()
         return false;
 
     std::vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
-    // TODO: write the code for voting here and modify vDynamic accordingly
-
+    // TODO: write the code for voting at Tracking::vote() and modify vDynamic accordingly
+    Vote(mLastFrame, trainIdx, queryIdx, vDynamic);
 
     // Optimize frame pose with all matches
     // TODO: modify PoseOptimization() s.t. it doesn't include dynamic kps when doing optimization
@@ -1598,6 +1609,18 @@ void Tracking::InformOnlyTracking(const bool &flag)
     mbOnlyTracking = flag;
 }
 
+// 16833 
+// vote for TrackReferenceKeyFrame()
+void Tracking::Vote(KeyFrame* pKF, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> &vDynamic)
+{
+    // can use mCurrentFrame, I pass in pKF only for the purpose of function overloading
+}
 
+// vote for TrackWithMotionModel()
+void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> &vDynamic)
+{
+    // can use mCurrentFrame, I pass in LastFrame only for the purpose of function overloading
 
+}
+// 16833
 } //namespace ORB_SLAM
