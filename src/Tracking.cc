@@ -18,7 +18,6 @@
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include "Tracking.h"
 
 #include<opencv2/core/core.hpp>
@@ -34,6 +33,7 @@
 #include"PnPsolver.h"
 
 #include<iostream>
+#include<algorithm>
 
 #include<mutex>
 
@@ -1614,12 +1614,101 @@ void Tracking::InformOnlyTracking(const bool &flag)
 void Tracking::Vote(KeyFrame* pKF, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> &vDynamic)
 {
     // can use mCurrentFrame, I pass in pKF only for the purpose of function overloading
+    cout << "Inside Reference KeyFrame Track" << endl;
 }
 
 // vote for TrackWithMotionModel()
 void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> &vDynamic)
 {
     // can use mCurrentFrame, I pass in LastFrame only for the purpose of function overloading
+	cout << "Inside Voting function" << endl;
+	int size_matches = trainIdx.size(), min_votes = 10;
+	// cout << "number of matches" << size_matches << "number of kps: " << mCurrentFrame.mvKeysUn.size() <<  endl;
+	unordered_map<string, int> match_dict;
+	for(int i=0; i<size_matches; ++i){
+		int l1 = LastFrame.kp2label[trainIdx[i]], l2 = mCurrentFrame.kp2label[queryIdx[i]];
+		if (l1 == -1 or l2 == -1){
+			continue;
+		}
+		string match_str = to_string(l1) + "-" + to_string(l2);
+		match_dict[match_str]++;
+	}
+
+	set<int> s1, s2;
+	unordered_map<int, int> res;
+
+	// sort according to frequency
+	vector<std::pair<string, int>> vote_map(match_dict.begin(), match_dict.end());
+	auto cmp = [](const pair<string, int>&l, const pair<string, int>& r) {return l.second > r.second;};
+	sort(vote_map.begin(), vote_map.end(), cmp);
+
+	string delim = "-";
+	for(auto x: vote_map){
+		// Split string at delim
+		int idx1 = stoi(x.first.substr(0,x.first.find(delim))), idx2 = stoi(x.first.substr(x.first.find(delim)+1));
+		if (x.second > min_votes and s1.find(idx1) == s1.end() and s2.find(idx2) == s2.end()){
+			res[idx1] = idx2;
+			s1.insert(idx1);
+			s2.insert(idx2);
+		}		
+	}
+
+	/* Debug res object-object correspondence
+	for(auto x: res){
+		cout << x.first  << "-> " << x.second <<  endl;
+	}
+	*/
+
+	cv::Mat K = (cv::Mat_<float>(3,3) << 525.0, 0.0, 319.5, 0.0, 525.0, 239.5, 0.0, 0.0, 1.0);
+	cv::BFMatcher bf(cv::NORM_HAMMING, true);
+	vector<cv::Mat> Rs, Ts;
+	
+	for (auto instance: res){
+		vector<cv::KeyPoint> kp1 = LastFrame.cloud_dict[instance.first].kp_arr, kp2 = mCurrentFrame.cloud_dict[instance.second].kp_arr;
+		vector<cv::Mat> des1 = LastFrame.cloud_dict[instance.first].des_arr, des2 = mCurrentFrame.cloud_dict[instance.second].des_arr;
+
+		// Make des1, des2 list into a cv::Mat
+		cv::Mat des1_mat(des1.size(), des1[0].cols, CV_8UC1);
+		for(size_t i=0; i<des1.size(); ++i){
+			des1[i].copyTo(des1_mat.row(i));
+		}
+		cv::Mat des2_mat(des2.size(), des2[0].cols, CV_8UC1);
+		for(size_t i=0; i<des2.size(); ++i){
+			des2[i].copyTo(des2_mat.row(i));
+		}
+
+		// match points inside corresponding segments		
+		vector<cv::DMatch> matches;
+		bf.match(des1_mat, des2_mat, matches);
+		auto dmcmp = [](const cv::DMatch &l, const cv::DMatch &r) {return l.distance > r.distance;};
+		sort(matches.begin(), matches.end(), dmcmp);
+		// for (auto match: matches) cout << "distance" << match.distance << endl;
+
+		vector<cv::Vec3f> xyz_arr;
+		vector<cv::Point> uv_arr;
+		for(auto match: matches){
+			xyz_arr.push_back(LastFrame.cloud_dict[instance.first].xyz_arr[match.queryIdx]);
+			uv_arr.push_back(mCurrentFrame.cloud_dict[instance.second].uv_arr[match.trainIdx]);
+		}
+
+		// Make xyz_arr and uv_arr into a UMat - TODO: Reduce this code into a one-time UMat population process
+		int num_matches = matches.size();
+		cv::Mat xyz;
+		cv::Mat(xyz_arr, true).reshape(1, num_matches).convertTo(xyz, CV_32FC1);
+		cv::Mat uv;
+		cv::Mat(uv_arr, true).reshape(1, num_matches).convertTo(uv, CV_32FC1);
+		cv::Mat rvec = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+		cv::Mat tvec = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+		vector<float> dummyEmptyDistCoeff;
+
+		cv::solvePnPRansac(xyz, uv, K, dummyEmptyDistCoeff, rvec, tvec, true);
+		Rs.push_back(rvec);
+		Ts.push_back(tvec);
+
+	}
+	
+	cout << "End of Frame" << endl;
+	cv::waitKey(0);	
 
 }
 // 16833

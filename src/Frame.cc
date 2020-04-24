@@ -47,7 +47,10 @@ Frame::Frame(const Frame &frame)
      mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
      mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
      mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
-     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2)
+     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2),
+     panoptic_seg(frame.panoptic_seg.clone()), kp2label(frame.kp2label),
+     seg_info(frame.seg_info), cloud_dict(frame.cloud_dict)
+
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -276,7 +279,7 @@ void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
         int u, v, label;
         u = int(mvKeys[i].pt.y);
         v = int(mvKeys[i].pt.x);
-        label = panoptic_seg.at<int>(u, v) + 1; // label is from 0 to n-1
+        label = (int)panoptic_seg.at<uchar>(u, v) + 1; // label is from 0 to n-1
         if (0 <= label && label <= n)
         {
             cv::Vec3b color = imRGB.at<cv::Vec3b>(u, v);
