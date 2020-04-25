@@ -36,7 +36,10 @@
 #include<algorithm>
 
 #include<mutex>
-
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 using namespace std;
 
@@ -267,6 +270,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 
 void Tracking::Track()
 {
+    printf("Tracking!\n");
     if(mState==NO_IMAGES_YET)
     {
         mState = NOT_INITIALIZED;
@@ -915,7 +919,7 @@ bool Tracking::TrackWithMotionModel()
     Vote(mLastFrame, trainIdx, queryIdx, vDynamic);
 
     // Optimize frame pose with all matches
-    // TODO: modify PoseOptimization() s.t. it doesn't include dynamic kps when doing optimization
+    // TODO: modify PoseOptimization() s.t. it shouldn't include dynamic kps when doing optimization
     Optimizer::PoseOptimization(&mCurrentFrame, vDynamic);
     // 16833
 
@@ -1633,9 +1637,9 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 		string match_str = to_string(l1) + "-" + to_string(l2);
 		match_dict[match_str]++;
 	}
-
+    
 	set<int> s1, s2;
-	unordered_map<int, int> res;
+	map<int, int> res;
 
 	// sort according to frequency
 	vector<std::pair<string, int>> vote_map(match_dict.begin(), match_dict.end());
@@ -1705,6 +1709,15 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 		Rs.push_back(rvec);
 		Ts.push_back(tvec);
 
+        cv::Mat R_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+        cv::Mat T_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+        int max_iter = 100;
+        float thrs_R = 0.05;
+        float thrs_T = 0.01;
+
+        RANSAC_Rt(Rs, R_res, max_iter, thrs_R);
+        RANSAC_Rt(Ts, T_res, max_iter, thrs_T);
+
 	}
 	
 	cout << "End of Frame" << endl;
@@ -1712,4 +1725,57 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 
 }
 // 16833
+
+// 16833
+void Tracking::findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vector<cv::Mat> &inlier){
+    int num_Rs = Rts.size();
+    for (int i=0; i<num_Rs; ++i){
+        cv::Mat absdist;
+        cv::absdiff(Rt, Rts[i], absdist);
+        float ssd = absdist.at<float>(0,0)*absdist.at<float>(0,0)+ 
+                    absdist.at<float>(0,1)*absdist.at<float>(0,1)+
+                    absdist.at<float>(0,2)*absdist.at<float>(0,2);
+        if (ssd < threshold)
+            inlier.push_back(Rts[i]);
+    }
+}
+// Do RANSAC for rotation matrix
+void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, float threshold)
+{
+    //Rt_out = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+    int num_Rts = Rts.size();
+    if (num_Rts == 0){
+        printf("No object matching found!\n");
+        return;
+    }
+
+    // Initialize Random seed
+    srand (time(NULL));
+
+    // Start RANSAC
+    float max_per = 0.0;
+    for (int i=0; i<max_iter; ++i){
+        int id = rand() % num_Rts;
+        
+        // Calculate distance
+        cv::Mat Rt = Rts[id];
+        vector<cv::Mat> inlier;
+        findInliers(Rts, Rt, threshold, inlier);
+
+        if (inlier.size()/num_Rts > max_per){
+            cv::Mat Rt_mean = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+            for (int j=0; j<inlier.size(); ++j){
+                Rt_mean.at<float>(0,0) += inlier[j].at<float>(0,0);
+                Rt_mean.at<float>(0,1) += inlier[j].at<float>(0,1);
+                Rt_mean.at<float>(0,2) += inlier[j].at<float>(0,2);
+            }
+            Rt_mean /= inlier.size();
+            vector<cv::Mat> inlier_;
+            findInliers(Rts, Rt_mean, threshold, inlier_);
+            max_per = inlier_.size() / num_Rts;
+            Rt_out = Rt_mean;
+        }
+    }
+}
+
 } //namespace ORB_SLAM

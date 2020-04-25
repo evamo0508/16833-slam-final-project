@@ -134,6 +134,8 @@ protected:
     // 16833
     void Vote(KeyFrame* kPF, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> & vDynamic);
     void Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> & vDynamic);
+    void findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vector<cv::Mat> &inlier);
+    void RANSAC_Rt(vector<cv::Mat> Rs, cv::Mat &R_out, int max_iter, float threshold);
     // 16833
     
     bool Relocalization();
