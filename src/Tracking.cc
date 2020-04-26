@@ -1746,7 +1746,7 @@ void Tracking::findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vec
         }
     }
 }
-
+// 16833
 // Do RANSAC for rotation matrix
 void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, float threshold){
     float num_Rts = Rts.size();
@@ -1783,11 +1783,11 @@ void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, flo
         }
     }
 }
-
+// 16833
 bool Tracking::closeEnough(const float& a, const float& b, const float& epsilon = std::numeric_limits<float>::epsilon()) {
     return (epsilon > std::abs(a - b));
 }
-
+// 16833
 void Tracking::eulerAngles(cv::Mat Rvec, cv::Mat &eulerR){
 
     const double PI = 3.14159265358979323846264f;
