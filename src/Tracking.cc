@@ -270,7 +270,6 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 
 void Tracking::Track()
 {
-    printf("Tracking!\n");
     if(mState==NO_IMAGES_YET)
     {
         mState = NOT_INITIALIZED;
@@ -1707,21 +1706,27 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 
 		cv::solvePnPRansac(xyz, uv, K, dummyEmptyDistCoeff, rvec, tvec, true);
 		Rs.push_back(rvec);
-		Ts.push_back(tvec);
-
-        cv::Mat R_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
-        cv::Mat T_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
-        int max_iter = 100;
-        float thrs_R = 0.05;
-        float thrs_T = 0.01;
-
-        RANSAC_Rt(Rs, R_res, max_iter, thrs_R);
-        RANSAC_Rt(Ts, T_res, max_iter, thrs_T);
-
+		Ts.push_back(tvec); 
 	}
+    
+    //Convert to Euler angle
+    vector <cv::Mat> eulerRs;
+    for (int i=0; i<Rs.size(); ++i){
+        cv::Mat eulerR(3, 1, CV_64F);
+        eulerAngles(Rs[i], eulerR);
+        eulerRs.push_back(eulerR);
+    }
+
+    int max_iter = 20;
+    cv::Mat R_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+    cv::Mat T_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+   
+    
+    RANSAC_Rt(eulerRs, R_res, max_iter, 0.05);
+    RANSAC_Rt(Ts, T_res, max_iter, 0.01);
 	
 	cout << "End of Frame" << endl;
-	cv::waitKey(0);	
+	cv::waitKey(0);
 
 }
 // 16833
@@ -1729,21 +1734,22 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 // 16833
 void Tracking::findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vector<cv::Mat> &inlier){
     int num_Rs = Rts.size();
+    
     for (int i=0; i<num_Rs; ++i){
-        cv::Mat absdist;
+        cv::Mat absdist(3, 1, CV_64F);
         cv::absdiff(Rt, Rts[i], absdist);
-        float ssd = absdist.at<float>(0,0)*absdist.at<float>(0,0)+ 
-                    absdist.at<float>(0,1)*absdist.at<float>(0,1)+
-                    absdist.at<float>(0,2)*absdist.at<float>(0,2);
-        if (ssd < threshold)
+        double ssd = absdist.at<double>(0,0)*absdist.at<double>(0,0)+ 
+                    absdist.at<double>(1,0)*absdist.at<double>(1,0)+
+                    absdist.at<double>(2,0)*absdist.at<double>(2,0);
+        if (ssd < threshold){
             inlier.push_back(Rts[i]);
+        }
     }
 }
+
 // Do RANSAC for rotation matrix
-void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, float threshold)
-{
-    //Rt_out = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
-    int num_Rts = Rts.size();
+void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, float threshold){
+    float num_Rts = Rts.size();
     if (num_Rts == 0){
         printf("No object matching found!\n");
         return;
@@ -1751,29 +1757,82 @@ void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, flo
 
     // Initialize Random seed
     srand (time(NULL));
-
+    
     // Start RANSAC
     float max_per = 0.0;
     for (int i=0; i<max_iter; ++i){
-        int id = rand() % num_Rts;
+        int id = rand() % (int)num_Rts;
         
         // Calculate distance
         cv::Mat Rt = Rts[id];
         vector<cv::Mat> inlier;
         findInliers(Rts, Rt, threshold, inlier);
-
-        if (inlier.size()/num_Rts > max_per){
-            cv::Mat Rt_mean = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
+        
+        if (inlier.size()/num_Rts >= max_per){
+            cv::Mat Rt_mean = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 0.0);
             for (int j=0; j<inlier.size(); ++j){
-                Rt_mean.at<float>(0,0) += inlier[j].at<float>(0,0);
-                Rt_mean.at<float>(0,1) += inlier[j].at<float>(0,1);
-                Rt_mean.at<float>(0,2) += inlier[j].at<float>(0,2);
+                Rt_mean.at<double>(0,0) += inlier[j].at<double>(0,0);
+                Rt_mean.at<double>(1,0) += inlier[j].at<double>(1,0);
+                Rt_mean.at<double>(2,0) += inlier[j].at<double>(2,0);
             }
             Rt_mean /= inlier.size();
             vector<cv::Mat> inlier_;
             findInliers(Rts, Rt_mean, threshold, inlier_);
             max_per = inlier_.size() / num_Rts;
             Rt_out = Rt_mean;
+        }
+    }
+}
+
+bool Tracking::closeEnough(const float& a, const float& b, const float& epsilon = std::numeric_limits<float>::epsilon()) {
+    return (epsilon > std::abs(a - b));
+}
+
+void Tracking::eulerAngles(cv::Mat Rvec, cv::Mat &eulerR){
+
+    const double PI = 3.14159265358979323846264f;
+    cv::Mat Rmat(3, 3, CV_64F);
+    cv::Rodrigues(Rvec, Rmat);
+
+    //check for gimbal lock
+    if (closeEnough(Rmat.at<double>(0,2), -1.0f)) {
+        double x = 0; //gimbal lock, value of x doesn't matter
+        double y = PI / 2.0;
+        double z = x + atan2(Rmat.at<double>(1,0), Rmat.at<double>(2,0));
+        eulerR.at<double>(0,0) = x;
+        eulerR.at<double>(1,0) = y;
+        eulerR.at<double>(2,0) = z;
+        return;
+    } else if (closeEnough(Rmat.at<double>(0,2), 1.0f)) {
+        double x = 0;
+        double y = -PI / 2.0;
+        double z = -x + atan2(-Rmat.at<double>(1,0), -Rmat.at<double>(2,0));
+        eulerR.at<double>(0,0) = x;
+        eulerR.at<double>(1,0) = y;
+        eulerR.at<double>(2,0) = z;
+        return;
+    } else { //two solutions exist
+        double x1 = -asin(Rmat.at<double>(0,2));
+        double x2 = PI - x1;
+
+        double y1 = atan2(Rmat.at<double>(1,2) / cos(x1), Rmat.at<double>(2,2) / cos(x1));
+        double y2 = atan2(Rmat.at<double>(1,2) / cos(x2), Rmat.at<double>(2,2) / cos(x2));
+
+        double z1 = atan2(Rmat.at<double>(0,1) / cos(x1), Rmat.at<double>(0,0) / cos(x1));
+        double z2 = atan2(Rmat.at<double>(0,1) / cos(x2), Rmat.at<double>(0,0) / cos(x2));
+
+        //choose one solution to return
+        //for example the "shortest" rotation
+        if ((std::abs(x1) + std::abs(y1) + std::abs(z1)) <= (std::abs(x2) + std::abs(y2) + std::abs(z2))) {
+            eulerR.at<double>(0,0) = x1;
+            eulerR.at<double>(1,0) = y1;
+            eulerR.at<double>(2,0) = z1;
+            return;
+        } else {
+            eulerR.at<double>(0,0) = x2;
+            eulerR.at<double>(1,0) = y2;
+            eulerR.at<double>(2,0) = z2;
+            return;
         }
     }
 }

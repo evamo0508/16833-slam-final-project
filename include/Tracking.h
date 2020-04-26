@@ -136,6 +136,9 @@ protected:
     void Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> & vDynamic);
     void findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vector<cv::Mat> &inlier);
     void RANSAC_Rt(vector<cv::Mat> Rs, cv::Mat &R_out, int max_iter, float threshold);
+    bool closeEnough(const float& a, const float& b, const float& epsilon);
+    void eulerAngles(cv::Mat Rvec, cv::Mat &eulerR);
+    
     // 16833
     
     bool Relocalization();
