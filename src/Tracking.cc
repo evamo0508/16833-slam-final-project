@@ -34,6 +34,7 @@
 
 #include<iostream>
 #include<algorithm>
+#include<set>
 
 #include<mutex>
 #include <unistd.h>
@@ -1624,9 +1625,9 @@ void Tracking::Vote(KeyFrame* pKF, const std::vector<int> &trainIdx, const std::
 void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> &vDynamic)
 {
     // can use mCurrentFrame, I pass in LastFrame only for the purpose of function overloading
-	cout << "Inside Voting function" << endl;
+	//cout << "Inside Voting function" << endl;
 	int size_matches = trainIdx.size(), min_votes = 10;
-	// cout << "number of matches" << size_matches << "number of kps: " << mCurrentFrame.mvKeysUn.size() <<  endl;
+	//cout << "number of matches:" << size_matches << ", number of kps: " << mCurrentFrame.mvKeysUn.size() <<  endl;
 	unordered_map<string, int> match_dict;
 	for(int i=0; i<size_matches; ++i){
 		int l1 = LastFrame.kp2label[trainIdx[i]], l2 = mCurrentFrame.kp2label[queryIdx[i]];
@@ -1692,6 +1693,7 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 		for(auto match: matches){
 			xyz_arr.push_back(LastFrame.cloud_dict[instance.first].xyz_arr[match.queryIdx]);
 			uv_arr.push_back(mCurrentFrame.cloud_dict[instance.second].uv_arr[match.trainIdx]);
+            //printf("Instance first = %d, second = %d\n", instance.first, instance.second);
 		}
 
 		// Make xyz_arr and uv_arr into a UMat - TODO: Reduce this code into a one-time UMat population process
@@ -1718,37 +1720,57 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
     }
 
     int max_iter = 20;
-    cv::Mat R_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
-    cv::Mat T_res = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
-   
-    
-    RANSAC_Rt(eulerRs, R_res, max_iter, 0.05);
-    RANSAC_Rt(Ts, T_res, max_iter, 0.01);
-	
+    cv::Mat R_res = (cv::Mat_<float>(3,1) << 0.0, 0.0, 0.0);
+    cv::Mat T_res = (cv::Mat_<float>(3,1) << 0.0, 0.0, 0.0);
+    //vector<int> inlierID_R, inlierID_t;
+    vector<bool> inlierID_R(Rs.size(), false);
+    vector<bool> inlierID_T(Ts.size(), false);
+    RANSAC_Rt(eulerRs, R_res, max_iter, 0.05, inlierID_R);
+    RANSAC_Rt(Ts, T_res, max_iter, 0.01, inlierID_T);
+
+    vector<int> kp2label = mCurrentFrame.kp2label;
+    int cnt = 0;
+    for (auto instance: res){
+        int instID_cur = instance.second;
+        //Inliers
+        if (inlierID_R[instID_cur] == true && inlierID_T[instID_cur] == true)
+            continue;
+
+        //Outliers
+        else{
+            for (int i=0; i<kp2label.size(); ++i){
+                if (kp2label[i] == instID_cur && vDynamic[i] == false){
+                    vDynamic[i] = true;
+                    ++cnt;
+                }
+            }
+        }
+    }	
+    cout<<"Total "<<cnt<<" dynamic points out of "<<kp2label.size()<<" points"<<endl;
 	cout << "End of Frame" << endl;
 	cv::waitKey(0);
-
 }
 // 16833
 
 // 16833
-void Tracking::findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vector<cv::Mat> &inlier){
+void Tracking::findInliers(vector<cv::Mat> Rts, cv::Mat Rt, float threshold, vector<cv::Mat> &inlier, vector<bool> &inlierID){
     int num_Rs = Rts.size();
     
     for (int i=0; i<num_Rs; ++i){
         cv::Mat absdist(3, 1, CV_64F);
         cv::absdiff(Rt, Rts[i], absdist);
-        double ssd = absdist.at<double>(0,0)*absdist.at<double>(0,0)+ 
-                    absdist.at<double>(1,0)*absdist.at<double>(1,0)+
-                    absdist.at<double>(2,0)*absdist.at<double>(2,0);
+        double ssd = absdist.at<double>(0,0)*absdist.at<double>(0,0)+
+                     absdist.at<double>(1,0)*absdist.at<double>(1,0)+
+                     absdist.at<double>(2,0)*absdist.at<double>(2,0);
         if (ssd < threshold){
             inlier.push_back(Rts[i]);
+            inlierID[i] = true;
         }
     }
 }
 // 16833
 // Do RANSAC for rotation matrix
-void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, float threshold){
+void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, float threshold, vector<bool> &inlierID_out){
     float num_Rts = Rts.size();
     if (num_Rts == 0){
         printf("No object matching found!\n");
@@ -1766,7 +1788,9 @@ void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, flo
         // Calculate distance
         cv::Mat Rt = Rts[id];
         vector<cv::Mat> inlier;
-        findInliers(Rts, Rt, threshold, inlier);
+        vector<bool> inlier_ID(num_Rts, false);
+        //vector<int> inlierID;
+        findInliers(Rts, Rt, threshold, inlier, inlier_ID);
         
         if (inlier.size()/num_Rts >= max_per){
             cv::Mat Rt_mean = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 0.0);
@@ -1777,7 +1801,7 @@ void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, flo
             }
             Rt_mean /= inlier.size();
             vector<cv::Mat> inlier_;
-            findInliers(Rts, Rt_mean, threshold, inlier_);
+            findInliers(Rts, Rt_mean, threshold, inlier_, inlierID_out);
             max_per = inlier_.size() / num_Rts;
             Rt_out = Rt_mean;
         }
@@ -1836,5 +1860,4 @@ void Tracking::eulerAngles(cv::Mat Rvec, cv::Mat &eulerR){
         }
     }
 }
-
 } //namespace ORB_SLAM
