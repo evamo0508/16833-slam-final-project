@@ -917,7 +917,6 @@ bool Tracking::TrackWithMotionModel()
     vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
     // TODO: write the code for voting at Tracking::vote() and modify vDynamic accordingly
     Vote(mLastFrame, trainIdx, queryIdx, vDynamic);
-
     // Optimize frame pose with all matches
     // TODO: modify PoseOptimization() s.t. it shouldn't include dynamic kps when doing optimization
     Optimizer::PoseOptimization(&mCurrentFrame, vDynamic);
@@ -1619,6 +1618,7 @@ void Tracking::Vote(KeyFrame* pKF, const std::vector<int> &trainIdx, const std::
 {
     // can use mCurrentFrame, I pass in pKF only for the purpose of function overloading
     cout << "Inside Reference KeyFrame Track" << endl;
+    
 }
 
 // vote for TrackWithMotionModel()
@@ -1718,13 +1718,13 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
         eulerAngles(Rs[i], eulerR);
         eulerRs.push_back(eulerR);
     }
-
     int max_iter = 20;
     cv::Mat R_res = (cv::Mat_<float>(3,1) << 0.0, 0.0, 0.0);
     cv::Mat T_res = (cv::Mat_<float>(3,1) << 0.0, 0.0, 0.0);
     //vector<int> inlierID_R, inlierID_t;
     vector<bool> inlierID_R(Rs.size(), false);
     vector<bool> inlierID_T(Ts.size(), false);
+    
     RANSAC_Rt(eulerRs, R_res, max_iter, 0.05, inlierID_R);
     RANSAC_Rt(Ts, T_res, max_iter, 0.01, inlierID_T);
 
@@ -1745,10 +1745,10 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
                 }
             }
         }
-    }	
+    }
     cout<<"Total "<<cnt<<" dynamic points out of "<<kp2label.size()<<" points"<<endl;
-	cout << "End of Frame" << endl;
-	cv::waitKey(0);
+	//cout << "End of Frame" << endl;
+	//cv::waitKey(0);
 }
 // 16833
 

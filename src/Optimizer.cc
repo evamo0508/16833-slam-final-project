@@ -488,16 +488,17 @@ int Optimizer::PoseOptimization(Frame *pFrame, const std::vector<bool> &vDynamic
     const float deltaMono = sqrt(5.991);
     const float deltaStereo = sqrt(7.815);
     
+    /*
     for (int i=0; i<vDynamic.size(); ++i){
         if (vDynamic[i])
             pFrame->mvbOutlier[i] = true;
     }
-
+    */
 
     {
     unique_lock<mutex> lock(MapPoint::mGlobalMutex);
 
-    for(int i=0; i<N; i++)
+    for(int i=0; i<N && !vDynamic[i]; i++)
     {
         MapPoint* pMP = pFrame->mvpMapPoints[i];
         if(pMP)
