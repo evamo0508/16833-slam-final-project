@@ -467,13 +467,13 @@ int Optimizer::PoseOptimization(Frame *pFrame, const std::vector<bool> &vDynamic
 
     // Set Frame vertex
     g2o::VertexSE3Expmap * vSE3 = new g2o::VertexSE3Expmap();
-    vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+    vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw)); //mTcw is camera pose
     vSE3->setId(0);
     vSE3->setFixed(false);
     optimizer.addVertex(vSE3);
 
     // Set MapPoint vertices
-    const int N = pFrame->N;
+    const int N = pFrame->N; 
 
     vector<g2o::EdgeSE3ProjectXYZOnlyPose*> vpEdgesMono;
     vector<size_t> vnIndexEdgeMono;
@@ -487,6 +487,11 @@ int Optimizer::PoseOptimization(Frame *pFrame, const std::vector<bool> &vDynamic
 
     const float deltaMono = sqrt(5.991);
     const float deltaStereo = sqrt(7.815);
+    
+    for (int i=0; i<vDynamic.size(); ++i){
+        if (vDynamic[i])
+            pFrame->mvbOutlier[i] = true;
+    }
 
 
     {
