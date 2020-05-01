@@ -1693,9 +1693,8 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 
 		// Make xyz_arr and uv_arr into a UMat - TODO: Reduce this code into a one-time UMat population process
 		int num_matches = matches.size();
-		cv::Mat xyz;
+		cv::Mat xyz, uv;
 		cv::Mat(xyz_arr, true).reshape(1, num_matches).convertTo(xyz, CV_32FC1);
-		cv::Mat uv;
 		cv::Mat(uv_arr, true).reshape(1, num_matches).convertTo(uv, CV_32FC1);
 		cv::Mat rvec = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
 		cv::Mat tvec = (cv::Mat_<float>(1,3) << 0.0, 0.0, 0.0);
@@ -1706,7 +1705,7 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 		Ts.push_back(tvec);
 
 	}
-	
+
 	cout << "End of Frame" << endl;
 	cv::waitKey(0);	
 
