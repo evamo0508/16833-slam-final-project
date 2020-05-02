@@ -288,6 +288,9 @@ void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
             float X = (u - cx) * Z / fx;
             float Y = (v - cy) * Z / fy;
             
+            // TODO: xyz_arr should have dereferenced mvpMapPoints in it
+            // (Refined points are in mvpMapPoints)
+
             cloud_dict[label].color_arr.push_back(color);
             cloud_dict[label].xyz_arr.push_back(cv::Vec3f(X, Y, Z));
             cloud_dict[label].des_arr.push_back(mDescriptors.row(i));

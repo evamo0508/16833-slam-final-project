@@ -28,6 +28,7 @@ namespace ORB_SLAM2
 
 long unsigned int KeyFrame::nNextId=0;
 
+// TODO: Redo constructor for adding cluster dictionary
 KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     mnFrameId(F.mnId),  mTimeStamp(F.mTimeStamp), mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
     mfGridElementWidthInv(F.mfGridElementWidthInv), mfGridElementHeightInv(F.mfGridElementHeightInv),

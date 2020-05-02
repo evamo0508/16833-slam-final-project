@@ -1617,8 +1617,7 @@ void Tracking::InformOnlyTracking(const bool &flag)
 void Tracking::Vote(KeyFrame* pKF, const std::vector<int> &trainIdx, const std::vector<int> &queryIdx, std::vector<bool> &vDynamic)
 {
     // can use mCurrentFrame, I pass in pKF only for the purpose of function overloading
-    cout << "Inside Reference KeyFrame Track" << endl;
-    
+    cout << "Inside Reference KeyFrame Track" << endl;    
 }
 
 // vote for TrackWithMotionModel()
@@ -1683,6 +1682,7 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 
 		// match points inside corresponding segments		
 		vector<cv::DMatch> matches;
+		// TODO: Convert BF Matcher to ORBMatcher.cc SearchbyProj and BoW
 		bf.match(des1_mat, des2_mat, matches);
 		auto dmcmp = [](const cv::DMatch &l, const cv::DMatch &r) {return l.distance > r.distance;};
 		sort(matches.begin(), matches.end(), dmcmp);
@@ -1698,6 +1698,7 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 
 		// Make xyz_arr and uv_arr into a UMat - TODO: Reduce this code into a one-time UMat population process
 		int num_matches = matches.size();
+		cout << "Size of ORB Matches: " << num_matches << endl;
 		cv::Mat xyz, uv;
 		cv::Mat(xyz_arr, true).reshape(1, num_matches).convertTo(xyz, CV_32FC1);
 		cv::Mat(uv_arr, true).reshape(1, num_matches).convertTo(uv, CV_32FC1);
@@ -1717,13 +1718,15 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
         eulerAngles(Rs[i], eulerR);
         eulerRs.push_back(eulerR);
     }
-    int max_iter = 20;
+
     cv::Mat R_res = (cv::Mat_<float>(3,1) << 0.0, 0.0, 0.0);
     cv::Mat T_res = (cv::Mat_<float>(3,1) << 0.0, 0.0, 0.0);
     //vector<int> inlierID_R, inlierID_t;
     vector<bool> inlierID_R(Rs.size(), false);
     vector<bool> inlierID_T(Ts.size(), false);
     
+    // Can change threshold and max_iter to vary ransac output
+    int max_iter = 100;
     RANSAC_Rt(eulerRs, R_res, max_iter, 0.05, inlierID_R);
     RANSAC_Rt(Ts, T_res, max_iter, 0.01, inlierID_T);
 
@@ -1732,8 +1735,10 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
     for (auto instance: res){
         int instID_cur = instance.second;
         //Inliers
-        if (inlierID_R[instID_cur] == true && inlierID_T[instID_cur] == true)
+        if (inlierID_R[instID_cur] == true && inlierID_T[instID_cur] == true){
+		    cout << instID_cur << " ";
             continue;
+        }
 
         //Outliers
         else{
@@ -1745,7 +1750,8 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
             }
         }
     }
-    cout<<"Total "<<cnt<<" dynamic points out of "<<kp2label.size()<<" points"<<endl;
+
+    cout<< endl <<"Total "<<cnt<<" dynamic points out of "<<kp2label.size()<<" points"<<endl;
 	//cout << "End of Frame" << endl;
 	//cv::waitKey(0);
 }
@@ -1807,6 +1813,7 @@ void Tracking::RANSAC_Rt(vector<cv::Mat> Rts, cv::Mat &Rt_out, int max_iter, flo
     }
 }
 // 16833
+// TODO: Convert to quaternion and find if they are close to each other (inner product > threshold)
 bool Tracking::closeEnough(const float& a, const float& b, const float& epsilon = std::numeric_limits<float>::epsilon()) {
     return (epsilon > std::abs(a - b));
 }
