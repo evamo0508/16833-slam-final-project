@@ -285,17 +285,18 @@ void Frame::GetClusteredPCL(const cv::Mat &imRGB, const cv::Mat &imDepth)
             cv::Vec3b color = imRGB.at<cv::Vec3b>(u, v);
             float Z = imDepth.at<float>(u, v); // has taken mDepthMapFactor into consideration in Tracking::GrabImageRGBD()
             if (Z == 0) continue;
-            float X = (u - cx) * Z / fx;
-            float Y = (v - cy) * Z / fy;
+            //float X = (u - cx) * Z / fx;
+            //float Y = (v - cy) * Z / fy;
             
             // TODO: xyz_arr should have dereferenced mvpMapPoints in it
             // (Refined points are in mvpMapPoints)
 
             cloud_dict[label].color_arr.push_back(color);
-            cloud_dict[label].xyz_arr.push_back(cv::Vec3f(X, Y, Z));
-            cloud_dict[label].des_arr.push_back(mDescriptors.row(i));
+            cloud_dict[label].xyz_arr.push_back(mvpMapPoints[i] -> mWorldPos);
+            //cloud_dict[label].des_arr.push_back(mDescriptors.row(i));
             cloud_dict[label].uv_arr.push_back(cv::Point(u, v));
-            cloud_dict[label].kp_arr.push_back(mvKeys[i]);
+            //cloud_dict[label].kp_arr.push_back(mvKeys[i]);
+            cloud_dict[label].kpidx_arr.push_back(i);
             kp2label[i] = label;
         }
     }

@@ -771,7 +771,7 @@ bool Tracking::TrackReferenceKeyFrame()
 
     // 16833
     vector<int> trainIdx, queryIdx;
-    // TODO: push back trainIdx, queryIdx in this fn, the size should be of nmatches for both vectors
+    // push back trainIdx, queryIdx in this fn, the size should be of nmatches for both vectors
 
     int nmatches = matcher.SearchByBoW(mpReferenceKF,mCurrentFrame,vpMapPointMatches, trainIdx, queryIdx);
 
@@ -786,7 +786,7 @@ bool Tracking::TrackReferenceKeyFrame()
     Vote(mpReferenceKF, trainIdx, queryIdx, vDynamic);
 
     // Optimize frame pose with all matches
-    // TODO: modify PoseOptimization() s.t. it doesn't include dynamic kps when doing optimization
+    // modify PoseOptimization() s.t. it doesn't include dynamic kps when doing optimization
     Optimizer::PoseOptimization(&mCurrentFrame, vDynamic);
     // 16833
 
@@ -915,10 +915,10 @@ bool Tracking::TrackWithMotionModel()
         return false;
 
     vector<bool> vDynamic(mCurrentFrame.N, false); // assume each kp is not dynamic first
-    // TODO: write the code for voting at Tracking::vote() and modify vDynamic accordingly
+    // write the code for voting at Tracking::vote() and modify vDynamic accordingly
     Vote(mLastFrame, trainIdx, queryIdx, vDynamic);
     // Optimize frame pose with all matches
-    // TODO: modify PoseOptimization() s.t. it shouldn't include dynamic kps when doing optimization
+    // modify PoseOptimization() s.t. it shouldn't include dynamic kps when doing optimization
     Optimizer::PoseOptimization(&mCurrentFrame, vDynamic);
     // 16833
 
@@ -1688,7 +1688,7 @@ void Tracking::Vote(Frame &LastFrame, const std::vector<int> &trainIdx, const st
 		sort(matches.begin(), matches.end(), dmcmp);
 		// for (auto match: matches) cout << "distance" << match.distance << endl;
 
-		vector<cv::Vec3f> xyz_arr;
+		vector<cv::Mat> xyz_arr;
 		vector<cv::Point> uv_arr;
 		for(auto match: matches){
 			xyz_arr.push_back(LastFrame.cloud_dict[instance.first].xyz_arr[match.queryIdx]);

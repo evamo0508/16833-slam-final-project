@@ -49,10 +49,11 @@ struct cluster {
     int pred_class;
     float score;
     std::vector<cv::Vec3b> color_arr;
-    std::vector<cv::Vec3f> xyz_arr;
-    std::vector<cv::Mat> des_arr;
+    std::vector<cv::Mat> xyz_arr;
+    //std::vector<cv::Mat> des_arr;
     std::vector<cv::Point> uv_arr;
-    std::vector<cv::KeyPoint> kp_arr;
+    //std::vector<cv::KeyPoint> kp_arr;
+    std::vector<int> kpidx_arr;
 };
 
 class Frame
